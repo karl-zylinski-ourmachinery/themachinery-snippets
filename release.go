@@ -3,10 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
+	"path"
+	"strings"
+
+	"github.com/jlaffaye/ftp"
 )
 
 const settingsFile = "releaseBuild.json"
@@ -17,6 +22,8 @@ const STEP_BUILD_WINDOWS_PACKAGE = "Build Windows package"
 const STEP_TEST_WINDOWS_PACKAGE = "Test Windows package"
 const STEP_UPDATE_VERSION_NUMBERS = "Update version numbers"
 const STEP_COMMIT_CHANGES = "Commit changes"
+const STEP_UPLOAD_WINDOWS_TO_DROPBOX = "Upload Windows package to Dropbox"
+const STEP_UPLOAD_WINDOWS_TO_WEBSITE = "Upload Windows package to website"
 
 // GetSetting returns the setting for the specified key.
 func GetSetting(key string) string {
@@ -82,11 +89,63 @@ func Run(cmd *exec.Cmd) {
 	}
 }
 
-func Instruction(s string) {
-	fmt.Println(s)
-	fmt.Println()
-	fmt.Println("Press enter to continue...")
-	fmt.Scanln()
+func ManualStep(s, details string) {
+	if !HasCompletedStep(s) {
+		fmt.Println(details)
+		fmt.Println()
+		fmt.Println("Press <Enter> to continue when done...")
+		fmt.Scanln()
+		CompleteStep(s)
+	}
+}
+
+func CopyFileToDir(srcFile, dir string) {
+	dstFile := path.Join(dir, path.Base(srcFile))
+	src, err := os.Open(srcFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer src.Close()
+	dst, err := os.Create(dstFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer dst.Close()
+	_, err = io.Copy(dst, src)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func UploadFileToWebsiteDir(srcFile, dir, password string) {
+	c, err := ftp.Dial("160.153.16.15:21")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = c.Login("ourmachinery", password)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = c.ChangeDir(dir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	f, err := os.Open(srcFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	base := path.Base(srcFile)
+	err = c.Stor(base, f)
+
+	c.Quit()
+}
+
+func Major(version string) string {
+	fields := strings.Split(version, ".")
+	return fields[0] + "." + fields[1]
 }
 
 func buildWindowsPackage() {
@@ -109,32 +168,53 @@ func buildWindowsPackage() {
 	}
 }
 
-func minorRelease() {
-	release := ReadSetting("Minor release number (M.m.p)")
-	major := release[0 : len(release)-2]
+func uploadWindowsPackage(version string) {
+	windowsPackage := "build/the-machinery-" + version + "-windows.zip"
+	windowsPdbsPackage := "build/the-machinery-pdbs-" + version + "-windows.zip"
+
+	if !HasCompletedStep(STEP_UPLOAD_WINDOWS_TO_DROPBOX) {
+		// TODO: Get Dropbox path from user settings somehow...
+		dropbox := "C:/Users/nikla/Dropbox (Our Machinery)/Our Machinery Everybody"
+		dir := path.Join(dropbox, "releases/early-adopter", Major(version))
+		CopyFileToDir(windowsPackage, dir)
+		CopyFileToDir(windowsPdbsPackage, dir)
+		CompleteStep(STEP_UPLOAD_WINDOWS_TO_DROPBOX)
+	}
+
+	if !HasCompletedStep(STEP_UPLOAD_WINDOWS_TO_WEBSITE) {
+		password := ReadSetting("Website password")
+		dir := "public_html/releases/" + Major(version)
+		UploadFileToWebsiteDir(windowsPackage, dir, password)
+		CompleteStep(STEP_UPLOAD_WINDOWS_TO_WEBSITE)
+	}
+}
+
+func hotfixRelease() {
+	version := ReadSetting("Hotfix version number (M.m.p)")
 
 	if !HasCompletedStep(STEP_CHECK_OUT_SOURCE) {
-		Run(exec.Command("git", "checkout", "release/"+major))
+		Run(exec.Command("git", "checkout", "release/"+Major(version)))
 		os.Chdir("../sample-projects")
-		Run(exec.Command("git", "checkout", "release-"+major))
+		Run(exec.Command("git", "checkout", "release-"+Major(version)))
 		os.Chdir("../themachinery")
 		CompleteStep(STEP_CHECK_OUT_SOURCE)
 	}
 
-	if !HasCompletedStep(STEP_UPDATE_VERSION_NUMBERS) {
-		Instruction("Update version numbers in the_machinery.h and *-package.json.")
-		CompleteStep(STEP_UPDATE_VERSION_NUMBERS)
-	}
+	// TODO: Automate this step.
+	ManualStep(STEP_UPDATE_VERSION_NUMBERS, "Update version numbers in the_machinery.h and *-package.json.")
 
 	buildWindowsPackage()
+	uploadWindowsPackage(version)
 
 	if !HasCompletedStep(STEP_COMMIT_CHANGES) {
-		Run(exec.Command("git", "commit", "-a", "-m", "Release "+release))
+		Run(exec.Command("git", "commit", "-a", "-m", "Release "+version))
 		Run(exec.Command("git", "push"))
 		CompleteStep(STEP_COMMIT_CHANGES)
 	}
+
+	ManualStep("Build on Linux", "Reboot to Linux and run the build script there.")
 }
 
 func main() {
-	minorRelease()
+	hotfixRelease()
 }
