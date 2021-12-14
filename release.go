@@ -231,7 +231,8 @@ func linuxBuildFromScratch() {
 	os.Chdir("..")
 	os.Mkdir("themachinery", 0755)
 	os.Chdir("themachinery")
-
+	os.Setenv("TM_OURMACHINERY_COM_DIR", "../ourmachinery.com")
+	os.Setenv("TM_SAMPLE_PROJECTS_DIR", "../sample-projects")
 	
 	if !HasCompletedStep(STEP_CLONE_REPOSITORY) {
 		// Clone main repository
@@ -240,7 +241,6 @@ func linuxBuildFromScratch() {
 
 		// Fake ourmachinery.com dir
 		os.Mkdir("../ourmachinery.com", 0755)
-		os.Setenv("TM_OURMACHINERY_COM_DIR", "../ourmachinery.com")
 		
 		// Sample projects
 		os.Chdir("..")
@@ -248,8 +248,7 @@ func linuxBuildFromScratch() {
 		os.Chdir("sample-projects")
 		Run(exec.Command("git", "checkout", "release-"+Major(version)))
 		os.Chdir("../themachinery")
-		os.Setenv("TM_SAMPLE_PROJECTS_DIR", "../sample-projects")
-
+		
 		CompleteStep(STEP_CLONE_REPOSITORY)
 	}
 
