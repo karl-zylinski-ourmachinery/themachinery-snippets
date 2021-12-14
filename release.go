@@ -275,7 +275,7 @@ func linuxBuildFromScratch() {
 
 	if !HasCompletedStep(STEP_BUILD_LINUX_PACKAGE) {
 		Run(exec.Command("./tmbuild", "-p", "release-package.json"))
-		Run(exec.Command("./tmbuild", "-p", "release-pdbs-package.json"))
+		Run(exec.Command("./tmbuild", "-p", "release-debug-symbols-package.json"))
 		CompleteStep(STEP_BUILD_LINUX_PACKAGE)
 	}
 
