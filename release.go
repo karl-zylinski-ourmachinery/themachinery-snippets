@@ -24,6 +24,7 @@ const STEP_UPDATE_VERSION_NUMBERS = "Update version numbers"
 const STEP_COMMIT_CHANGES = "Commit changes"
 const STEP_UPLOAD_WINDOWS_TO_DROPBOX = "Upload Windows package to Dropbox"
 const STEP_UPLOAD_WINDOWS_TO_WEBSITE = "Upload Windows package to website"
+const STEP_CLONE_REPOSITORY = "Clone repository"
 
 // GetSetting returns the setting for the specified key.
 func GetSetting(key string) string {
@@ -215,6 +216,39 @@ func hotfixRelease() {
 	ManualStep("Build on Linux", "Reboot to Linux and run the build script there.")
 }
 
+func linuxBuildFromScratch() {
+	version := ReadSetting("Hotfix version number (M.m.p)")
+	user := ReadSetting("GitHub user")
+	token := ReadSetting("GitHub Access Token")
+
+	os.Chdir("..")
+	os.Mkdir("themachinery", 0755)
+	os.Chdir("themachinery")
+
+	
+	if !HasCompletedStep(STEP_CLONE_REPOSITORY) {
+		// Clone main repository
+		Run(exec.Command("git", "clone", "https://" + user + ":" + token + "@github.com/OurMachinery/themachinery.git", "."))
+		Run(exec.Command("git", "checkout", "release/"+Major(version)))
+
+		// Fake ourmachinery.com dir
+		os.Mkdir("../ourmachinery.com", 0755)
+		os.Setenv("TM_OURMACHINERY_COM_DIR", "../ourmachinery.com")
+
+		
+		// Sample projects
+		os.Chdir("..")
+		Run(exec.Command("git", "clone", "https://" + user + ":" + token + "@github.com/OurMachinery/sample-projects.git"))
+		os.Chdir("sample-projects")
+		Run(exec.Command("git", "checkout", "release-"+Major(version)))
+		os.Chdir("../themachinery")
+		os.Setenv("TM_SAMPLE_PROJECTS_DIR", "../sample-projects")
+
+		CompleteStep(STEP_CLONE_REPOSITORY)
+	}
+}
+
 func main() {
-	hotfixRelease()
+	// hotfixRelease()
+	linuxBuildFromScratch()
 }
