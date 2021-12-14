@@ -25,6 +25,7 @@ const STEP_COMMIT_CHANGES = "Commit changes"
 const STEP_UPLOAD_WINDOWS_TO_DROPBOX = "Upload Windows package to Dropbox"
 const STEP_UPLOAD_WINDOWS_TO_WEBSITE = "Upload Windows package to website"
 const STEP_CLONE_REPOSITORY = "Clone repository"
+const STEP_INSTALL_BUILD_LIBRARIES = "Install build libraries"
 
 // GetSetting returns the setting for the specified key.
 func GetSetting(key string) string {
@@ -234,7 +235,6 @@ func linuxBuildFromScratch() {
 		// Fake ourmachinery.com dir
 		os.Mkdir("../ourmachinery.com", 0755)
 		os.Setenv("TM_OURMACHINERY_COM_DIR", "../ourmachinery.com")
-
 		
 		// Sample projects
 		os.Chdir("..")
@@ -245,6 +245,15 @@ func linuxBuildFromScratch() {
 		os.Setenv("TM_SAMPLE_PROJECTS_DIR", "../sample-projects")
 
 		CompleteStep(STEP_CLONE_REPOSITORY)
+	}
+
+	if !HasCompletedStep(STEP_INSTALL_BUILD_LIBRARIES) {
+		Run(exec.Command("/bin/sh", "-c", "sudo sed -i '1 ! s/restricted/restricted universe multiverse/g' /etc/apt/sources.list"))
+		Run(exec.Command("/bin/sh", "-c", "sudo apt update"))
+		Run(exec.Command("/bin/sh", "-c", "sudo apt -y install git make clang libasound2-dev libxcb-randr0-dev libxcb-util0-dev libxcb-ewmh-dev"))
+		Run(exec.Command("/bin/sh", "-c", "sudo apt -y install libxcb-icccm4-dev libxcb-keysyms1-dev libxcb-cursor-dev libxcb-xkb-dev libxkbcommon-dev"))
+		Run(exec.Command("/bin/sh", "-c", "sudo apt -y install libxkbcommon-x11-dev libtinfo5 libxcb-xrm-dev"))
+		CompleteStep(STEP_INSTALL_BUILD_LIBRARIES)
 	}
 }
 
