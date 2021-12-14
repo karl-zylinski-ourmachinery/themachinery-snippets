@@ -220,6 +220,9 @@ func linuxBuildFromScratch() {
 	const STEP_INSTALL_BUILD_LIBRARIES = "Install build libraries"
 	const STEP_INSTALL_TMBUILD = "Install tmbuild"
 	const STEP_BOOTSTRAP_TMBUILD_WITH_LATEST = "Bootstrap tmbuild with latest"
+	const STEP_BUILD_LINUX_PACKAGE = "Build Linux package"
+	const STEP_TEST_LINUX_PACKAGE = "Test Linux package"
+	const STEP_UPLOAD_LINUX_TO_DROPBOX = "Upload Linux package to Dropbox"
 
 	version := ReadSetting("Hotfix version number (M.m.p)")
 	user := ReadSetting("GitHub user")
@@ -266,10 +269,38 @@ func linuxBuildFromScratch() {
 	}
 
 	if !HasCompletedStep(STEP_BOOTSTRAP_TMBUILD_WITH_LATEST) {
-		Run(exec.Command("./tmbuild", "--project", "tmbuild"))
+		Run(exec.Command("./tmbuild", "--project", "tmbuild", "--no-unit-test"))
 		Run(exec.Command("cp", "bin/Debug/tmbuild", "."))
 		CompleteStep(STEP_BOOTSTRAP_TMBUILD_WITH_LATEST)
 	}
+
+	if !HasCompletedStep(STEP_BUILD_LINUX_PACKAGE) {
+		Run(exec.Command("./tmbuild", "-p", "release-package.json"))
+		Run(exec.Command("./tmbuild", "-p", "release-pdbs-package.json"))
+		CompleteStep(STEP_BUILD_LINUX_PACKAGE)
+	}
+
+	if !HasCompletedStep(STEP_TEST_LINUX_PACKAGE) {
+		Run(exec.Command("build/the-machinery/bin/simple-3d"))
+		Run(exec.Command("build/the-machinery/bin/simple-draw"))
+		Run(exec.Command("build/the-machinery/bin/the-machinery"))
+		CompleteStep(STEP_TEST_LINUX_PACKAGE)
+	}
+
+	linuxPackage := "build/the-machinery-" + version + "-linux.zip"
+	linuxSymbolsPackage := "build/the-machinery-debug-symbols-" + version + "-linux.zip"
+
+	if !HasCompletedStep(STEP_UPLOAD_LINUX_TO_DROPBOX) {
+		Run(exec.Command("/bin/sh", "-c", "firefox https://www.dropbox.com/work/Our%20Machinery%20Everybody/releases/early-adopter/2021.11"))
+		ManualStep(STEP_UPLOAD_LINUX_TO_DROPBOX, "Upload " + linuxPackage + " and " + linuxSymbolsPackage + "to Dropbox")
+	}
+
+	//if !HasCompletedStep(STEP_UPLOAD__TO_WEBSITE) {
+//		password := ReadSetting("Website password")
+//		dir := "public_html/releases/" + Major(version)
+//		UploadFileToWebsiteDir(windowsPackage, dir, password)
+//		CompleteStep(STEP_UPLOAD__TO_WEBSITE)
+//	}
 }
 
 func main() {
