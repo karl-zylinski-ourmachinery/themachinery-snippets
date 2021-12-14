@@ -24,8 +24,6 @@ const STEP_UPDATE_VERSION_NUMBERS = "Update version numbers"
 const STEP_COMMIT_CHANGES = "Commit changes"
 const STEP_UPLOAD_WINDOWS_TO_DROPBOX = "Upload Windows package to Dropbox"
 const STEP_UPLOAD_WINDOWS_TO_WEBSITE = "Upload Windows package to website"
-const STEP_CLONE_REPOSITORY = "Clone repository"
-const STEP_INSTALL_BUILD_LIBRARIES = "Install build libraries"
 
 // GetSetting returns the setting for the specified key.
 func GetSetting(key string) string {
@@ -218,6 +216,11 @@ func hotfixRelease() {
 }
 
 func linuxBuildFromScratch() {
+	const STEP_CLONE_REPOSITORY = "Clone repository"
+	const STEP_INSTALL_BUILD_LIBRARIES = "Install build libraries"
+	const STEP_INSTALL_TMBUILD = "Install tmbuild"
+	const STEP_BOOTSTRAP_TMBUILD_WITH_LATEST = "Bootstrap tmbuild with latest"
+
 	version := ReadSetting("Hotfix version number (M.m.p)")
 	user := ReadSetting("GitHub user")
 	token := ReadSetting("GitHub Access Token")
@@ -254,6 +257,18 @@ func linuxBuildFromScratch() {
 		Run(exec.Command("/bin/sh", "-c", "sudo apt -y install libxcb-icccm4-dev libxcb-keysyms1-dev libxcb-cursor-dev libxcb-xkb-dev libxkbcommon-dev"))
 		Run(exec.Command("/bin/sh", "-c", "sudo apt -y install libxkbcommon-x11-dev libtinfo5 libxcb-xrm-dev"))
 		CompleteStep(STEP_INSTALL_BUILD_LIBRARIES)
+	}
+
+	if !HasCompletedStep(STEP_INSTALL_TMBUILD) {
+		Run(exec.Command("wget", "-O", "tmbuild", "https://www.dropbox.com/s/h4a0subvm5hzwgf/tmbuild?dl=1"))
+		Run(exec.Command("chmod", "u+x", "tmbuild"))
+		CompleteStep(STEP_INSTALL_TMBUILD)
+	}
+
+	if !HasCompletedStep(STEP_BOOTSTRAP_TMBUILD_WITH_LATEST) {
+		Run(exec.Command("./tmbuild", "--project", "tmbuild"))
+		Run(exec.Command("cp", "bin/Debug/tmbuild", "."))
+		CompleteStep(STEP_BOOTSTRAP_TMBUILD_WITH_LATEST)
 	}
 }
 
