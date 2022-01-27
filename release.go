@@ -368,11 +368,15 @@ func stepUpdateEngineSampleProjectLinks(version string) {
 	}
 }
 
-func stepCommitChanges(version string) {
+func stepCommitChanges(version string, setUpstream bool) {
 	const STEP_COMMIT_CHANGES = "Commit changes"
 	if !HasCompletedStep(STEP_COMMIT_CHANGES) {
 		Run(exec.Command("git", "commit", "-a", "-m", "Release "+version))
-		Run(exec.Command("git", "push"))
+		if setUpstream {
+			Run(exec.Command("git", "push", "--set-upstream", "origin", "release/"+version))
+		} else {
+			Run(exec.Command("git", "push"))
+		}
 		CompleteStep(STEP_COMMIT_CHANGES)
 	}
 }
@@ -457,6 +461,7 @@ func release() {
 	stepUpdateEngineSampleProjectLinks(version)
 	stepBuildWindowsPackage()
 	stepUploadWindowsPackage(version)
+	stepCommitChanges(version, true)
 
 	ManualStep("Build on Linux", "Reboot to Linux and run the build script there.")
 	ManualStep("Update website links", "Update the links on the download page with the links to the new project.")
@@ -483,7 +488,7 @@ func hotfixRelease() {
 	stepUpdateVersionNumbers(version)
 	stepBuildWindowsPackage()
 	stepUploadWindowsPackage(version)
-	stepCommitChanges(version)
+	stepCommitChanges(version, false)
 
 	ManualStep("Build on Linux", "Reboot to Linux and run the build script there.")
 
