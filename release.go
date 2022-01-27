@@ -10,6 +10,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -557,9 +558,14 @@ func linuxBuildFromScratch() {
 	user := ReadSetting("GitHub user")
 	token := ReadSetting("GitHub Access Token")
 
-	os.Chdir("..")
-	os.Mkdir("themachinery", 0755)
-	os.Chdir("themachinery")
+	err := os.Mkdir("themachinery", 0755)
+	if err != nil {
+		panic(err)
+	}
+	err = os.Chdir("themachinery")
+	if err != nil {
+		panic(err)
+	}
 	os.Setenv("TM_OURMACHINERY_COM_DIR", "../ourmachinery.com")
 	os.Setenv("TM_SAMPLE_PROJECTS_DIR", "../sample-projects")
 
@@ -640,8 +646,16 @@ func linuxBuildFromScratch() {
 }
 
 func main() {
+	hotfixPtr := flag.Bool("hotfix", false, "Make a hotfix build")
+	linuxPtr := flag.Bool("linux", false, "Make a linux build")
+	flag.Parse()
+
 	os.Chdir("..")
-	release()
-	// hotfixRelease()
-	// linuxBuildFromScratch()
+	if (*hotfixPtr) {
+		hotfixRelease()
+	} else if (*linuxPtr) {
+		linuxBuildFromScratch()
+	} else {
+		release()
+	}
 }
