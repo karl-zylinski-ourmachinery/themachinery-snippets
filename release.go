@@ -553,7 +553,7 @@ func hotfixRelease() {
 }
 
 func linuxBuildFromScratch() {
-	version := ReadSetting("Hotfix version number (M.m.p)")
+	version := ReadSetting("Version number (M.m.p)")
 	user := ReadSetting("GitHub user")
 	token := ReadSetting("GitHub Access Token")
 
