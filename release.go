@@ -443,11 +443,70 @@ func stepMergeToMaster(version string) {
 		os.Chdir("../sample-projects")
 		Run(exec.Command("git", "checkout", "master"))
 		os.Chdir("../themachinery")
-
 		Run(exec.Command("git", "checkout", "master"))
 		Run(exec.Command("git", "merge", "release/"+Major(version)))
 		Run(exec.Command("git", "push"))
 		CompleteStep(MERGE_TO_MASTER)
+	}
+}
+
+func stepUpdateDownloadsConfig(version string, isHotfix bool) {
+	const UPDATE_DOWNLOADS_CONFIGS = "Update themachinery/the-machinery-downloads-configs.json"
+	if !HasCompletedStep(UPDATE_DOWNLOADS_CONFIGS) {
+		dropbox := "C:/Users/nikla/Dropbox (Our Machinery)/Our Machinery Everybody"
+		dir := path.Join(dropbox, "releases/2022", Major(version))
+		windowsPackage := path.Join(dir, "the-machinery-"+version+"-windows.zip")
+		linuxPackage := path.Join(dir, "the-machinery-"+version+"-linux.zip")
+		windowsStat, err := os.Stat(windowsPackage)
+		if err != nil {
+			panic(err)
+		}
+		linuxStat, err := os.Stat(linuxPackage)
+		if err != nil {
+			panic(err)
+		}
+
+		s := `
+        {
+            "platform": "windows",
+            "version": "%VERSION%",
+            "download": "https://ourmachinery.com/releases/%MAJOR%/the-machinery-%VERSION%-windows.zip",
+            "releaseNotes": "https://ourmachinery.com/post/release-%DASH-VERSION%#%HOTFIXLINK%",
+            "size": "%WINDOWS-SIZE%"
+        },
+        {
+            "platform": "linux",
+            "version": "%VERSION%",
+            "download": "https://ourmachinery.com/releases/%MAJOR%/the-machinery-%VERSION%-linux.zip",
+            "releaseNotes": "https://ourmachinery.com/post/release-%DASH-VERSION%#%HOTFIXLINK%",
+            "size": "%LINUX-SIZE%"
+        },`
+		s = strings.ReplaceAll(s, "%MAJOR%", Major(version))
+		s = strings.ReplaceAll(s, "%VERSION%", version)
+		dashVersion := strings.ReplaceAll(Major(version), ".", "-")
+		s = strings.ReplaceAll(s, "%DASH-VERSION%", dashVersion)
+		if isHotfix {
+			s = strings.ReplaceAll(s, "%HOTFIXLINK%", HotFixLink(version))
+		} else {
+			s = strings.ReplaceAll(s, "#%HOTFIXLINK%", "")
+		}
+		s = strings.ReplaceAll(s, "%WINDOWS-SIZE%", fmt.Sprintf("%v", windowsStat.Size()))
+		s = strings.ReplaceAll(s, "%LINUX-SIZE%", fmt.Sprintf("%v", linuxStat.Size()))
+		fmt.Println(s)
+		fmt.Println()
+		fmt.Println("Press <Enter> to continue when done...")
+		fmt.Scanln()
+		CompleteStep(UPDATE_DOWNLOADS_CONFIGS)
+	}
+
+	const UPLOAD_DOWNLOADS_CONFIGS = "Upload downloads configs"
+	if !HasCompletedStep(UPLOAD_DOWNLOADS_CONFIGS) {
+		Run(exec.Command("tmbuild"))
+		password := ReadSetting("Website password")
+		dir := "public_html"
+		UploadFileToWebsiteDir("the_machinery/the-machinery-downloads-config.json", dir, password)
+		Run(exec.Command("bin/Debug/the-machinery.exe"))
+		CompleteStep(UPLOAD_DOWNLOADS_CONFIGS)
 	}
 }
 
@@ -472,6 +531,11 @@ func release() {
 	stepBuildWebsite()
 	stepPushTags(version)
 	stepMergeToMaster(version)
+
+	const STEP_UPDATE_MASTER_VERSION_NUMBERS = "Update master version numbers"
+	ManualStep(STEP_UPDATE_MASTER_VERSION_NUMBERS, "Update master version numbers in the_machinery.h and *-package.json to -dev.")
+
+	stepUpdateDownloadsConfig(version, false)
 }
 
 func hotfixRelease() {
@@ -500,57 +564,7 @@ func hotfixRelease() {
 	stepPushTags(version)
 	stepMergeToMaster(version)
 
-	const UPDATE_DOWNLOADS_CONFIGS = "Update themachinery/the-machinery-downloads-configs.json"
-	if !HasCompletedStep(UPDATE_DOWNLOADS_CONFIGS) {
-		dropbox := "C:/Users/nikla/Dropbox (Our Machinery)/Our Machinery Everybody"
-		dir := path.Join(dropbox, "releases/2022", Major(version))
-		windowsPackage := path.Join(dir, "the-machinery-"+version+"-windows.zip")
-		linuxPackage := path.Join(dir, "the-machinery-"+version+"-linux.zip")
-		windowsStat, err := os.Stat(windowsPackage)
-		if err != nil {
-			panic(err)
-		}
-		linuxStat, err := os.Stat(linuxPackage)
-		if err != nil {
-			panic(err)
-		}
-
-		s := `
-        {
-            "platform": "windows",
-            "version": "VERSION",
-            "download": "https://ourmachinery.com/releases/MAJOR/the-machinery-VERSION-windows.zip",
-            "releaseNotes": "https://ourmachinery.com/post/release-2021-11#HOTFIXLINK",
-            "size": "WINDOWS-SIZE"
-        },
-        {
-            "platform": "linux",
-            "version": "VERSION",
-            "download": "https://ourmachinery.com/releases/MAJOR/the-machinery-VERSION-linux.zip",
-            "releaseNotes": "https://ourmachinery.com/post/release-2021-11#HOTFIXLINK",
-            "size": "LINUX-SIZE"
-        },`
-		s = strings.ReplaceAll(s, "MAJOR", Major(version))
-		s = strings.ReplaceAll(s, "VERSION", version)
-		s = strings.ReplaceAll(s, "HOTFIXLINK", HotFixLink(version))
-		s = strings.ReplaceAll(s, "WINDOWS-SIZE", fmt.Sprintf("%v", windowsStat.Size()))
-		s = strings.ReplaceAll(s, "LINUX-SIZE", fmt.Sprintf("%v", linuxStat.Size()))
-		fmt.Println(s)
-		fmt.Println()
-		fmt.Println("Press <Enter> to continue when done...")
-		fmt.Scanln()
-		CompleteStep(UPDATE_DOWNLOADS_CONFIGS)
-	}
-
-	const UPLOAD_DOWNLOADS_CONFIGS = "Upload downloads configs"
-	if !HasCompletedStep(UPLOAD_DOWNLOADS_CONFIGS) {
-		Run(exec.Command("tmbuild"))
-		password := ReadSetting("Website password")
-		dir := "public_html"
-		UploadFileToWebsiteDir("the_machinery/the-machinery-downloads-config.json", dir, password)
-		Run(exec.Command("bin/Debug/the-machinery.exe"))
-		CompleteStep(UPLOAD_DOWNLOADS_CONFIGS)
-	}
+	stepUpdateDownloadsConfig(version, true)
 }
 
 func linuxBuildFromScratch() {
@@ -651,9 +665,9 @@ func main() {
 	flag.Parse()
 
 	os.Chdir("..")
-	if (*hotfixPtr) {
+	if *hotfixPtr {
 		hotfixRelease()
-	} else if (*linuxPtr) {
+	} else if *linuxPtr {
 		linuxBuildFromScratch()
 	} else {
 		release()
