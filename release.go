@@ -10,6 +10,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -595,7 +596,10 @@ func linuxBuildFromScratch() {
 	user := ReadSetting("GitHub user")
 	token := ReadSetting("GitHub Access Token")
 
-	err := os.Mkdir("themachinery", 0755)
+	_, err := os.Stat("themachinery")
+	if errors.Is(err, os.ErrNotExist) {
+		err = os.Mkdir("themachinery", 0755)
+	}
 	if err != nil {
 		panic(err)
 	}
