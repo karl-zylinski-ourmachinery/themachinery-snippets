@@ -164,6 +164,20 @@ func HotFixLink(version string) string {
 	return strings.ReplaceAll(version, ".", "")
 }
 
+// TODO: Should these be configurable?
+func sampleProjectsDir() string {
+	return "../sample-projects"
+}
+func websiteDir() string {
+	return "../ourmachinery.com"
+}
+func theMachineryDir() string {
+	return ".."
+}
+func dropboxDir() string {
+	return "C:/Users/nikla/Dropbox (Our Machinery)/Our Machinery Everybody"
+}
+
 func stepBuildWindowsPackage() {
 	const STEP_CLEAN = "Clean directory"
 	if !HasCompletedStep(STEP_CLEAN) {
@@ -194,7 +208,7 @@ func stepUploadWindowsPackage(version string) {
 	const STEP_UPLOAD_WINDOWS_TO_DROPBOX = "Upload Windows package to Dropbox"
 	if !HasCompletedStep(STEP_UPLOAD_WINDOWS_TO_DROPBOX) {
 		// TODO: Get Dropbox path from user settings somehow...
-		dropbox := "C:/Users/nikla/Dropbox (Our Machinery)/Our Machinery Everybody"
+		dropbox := dropboxDir()
 		dir := path.Join(dropbox, "releases/2022", Major(version))
 		CopyFileToDir(windowsPackage, dir)
 		CopyFileToDir(windowsPdbsPackage, dir)
@@ -214,13 +228,14 @@ func stepCreateReleaseBranch(version string) {
 	const STEP_CHECK_OUT_SOURCE = "Check out source code"
 	if !HasCompletedStep(STEP_CHECK_OUT_SOURCE) {
 		Run(exec.Command("git", "checkout", "-b", "release/"+Major(version)))
-		os.Chdir("../sample-projects")
+		buildDir, _ := os.Getwd()
+		os.Chdir(sampleProjectsDir())
 		Run(exec.Command("git", "pull"))
 		Run(exec.Command("git", "tag", "release-"+Major(version)))
 		Run(exec.Command("git", "push", "--tags"))
-		os.Chdir("../ourmachinery.com")
+		os.Chdir(websiteDir())
 		Run(exec.Command("git", "pull"))
-		os.Chdir("../themachinery")
+		os.Chdir(buildDir)
 		CompleteStep(STEP_CHECK_OUT_SOURCE)
 	}
 }
@@ -243,12 +258,13 @@ func stepBuildSampleProjects(version string) {
 	const STEP_BUILD_SAMPLE_PROJECTS = "Build sample projects"
 	if !HasCompletedStep(STEP_BUILD_SAMPLE_PROJECTS) {
 		Run(exec.Command("bin/Debug/the-machinery.exe", "--safe-mode", "-t", "task-export-projects"))
-		os.Chdir("../sample-projects")
+		buildDir, _ := os.Getwd()
+		os.Chdir(sampleProjectsDir())
 		Run(exec.Command("git", "commit", "-am", "Updated sample projects for release-"+Major(version)))
 		Run(exec.Command("git", "tag", "release-"+Major(version)))
 		Run(exec.Command("git", "push"))
 		Run(exec.Command("git", "push", "--tags"))
-		os.Chdir("../themachinery")
+		os.Chdir(buildDir)
 		CompleteStep(STEP_BUILD_SAMPLE_PROJECTS)
 	}
 }
@@ -257,29 +273,29 @@ func stepRebuildSampleProjects() {
 	const STEP_REBUILD_SAMPLE_PROJECTS = "Rebuild sample projects -- git should be clean"
 	if !HasCompletedStep(STEP_REBUILD_SAMPLE_PROJECTS) {
 		Run(exec.Command("bin/Debug/the-machinery.exe", "--safe-mode", "-t", "task-export-projects"))
-		os.Chdir("../sample-projects")
+		buildDir, _ := os.Getwd()
+		os.Chdir(sampleProjectsDir())
 		Run(exec.Command("git", "status"))
-		os.Chdir("../themachinery")
+		os.Chdir(buildDir)
 		CompleteStep(STEP_REBUILD_SAMPLE_PROJECTS)
 	}
 }
 
 func stepUploadSampleProjects(version string) {
 	samples := []string{}
-	files, err := os.ReadDir("../sample-projects")
+	files, err := os.ReadDir(sampleProjectsDir())
 	if err != nil {
 		panic(err)
 	}
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), ".7z") {
-			samples = append(samples, path.Join("../sample-projects", file.Name()))
+			samples = append(samples, path.Join(sampleProjectsDir(), file.Name()))
 		}
 	}
 
 	const STEP_UPLOAD_SAMPLE_PROJECTS_TO_DROPBOX = "Upload Sample Projects to Dropbox"
 	if !HasCompletedStep(STEP_UPLOAD_SAMPLE_PROJECTS_TO_DROPBOX) {
-		// TODO: Get Dropbox path from user settings somehow...
-		dropbox := "C:/Users/nikla/Dropbox (Our Machinery)/Our Machinery Everybody"
+		dropbox := dropboxDir()
 		dir := path.Join(dropbox, "releases/2022", Major(version))
 		os.Mkdir(dir, 0777)
 		for _, sample := range samples {
@@ -329,7 +345,7 @@ func sampleProjectName(fileName string) string {
 
 func stepUpdateEngineSampleProjectLinks(version string) {
 	samples := make([]os.DirEntry, 0)
-	files, err := os.ReadDir("../sample-projects")
+	files, err := os.ReadDir(sampleProjectsDir())
 	if err != nil {
 		panic(err)
 	}
@@ -385,7 +401,8 @@ func stepCommitChanges(version string, setUpstream bool) {
 func stepBuildWebsite() {
 	const STEP_VERIFY_WEBSITE = "Verify website"
 	if !HasCompletedStep(STEP_VERIFY_WEBSITE) {
-		os.Chdir("../ourmachinery.com")
+		buildDir, _ := os.Getwd()
+		os.Chdir(websiteDir())
 		hugoServe := exec.Command("hugo-80", "serve")
 		hugoServe.Stdout = os.Stdout
 		hugoServe.Stderr = os.Stderr
@@ -396,33 +413,36 @@ func stepBuildWebsite() {
 		Run(exec.Command("rundll32", "url.dll,FileProtocolHandler", "http://localhost:1313/"))
 		ManualStep(STEP_VERIFY_WEBSITE, "Verify that website is working")
 		hugoServe.Process.Kill()
-		os.Chdir("../themachinery")
+		os.Chdir(buildDir)
 		CompleteStep(STEP_VERIFY_WEBSITE)
 	}
 
 	const BUILD_WEBSITE = "Build website"
 	if !HasCompletedStep(BUILD_WEBSITE) {
-		os.Chdir("../ourmachinery.com")
+		buildDir, _ := os.Getwd()
+		os.Chdir(websiteDir())
 		Run(exec.Command("hugo-80"))
-		os.Chdir("../themachinery")
+		os.Chdir(buildDir)
 		CompleteStep(BUILD_WEBSITE)
 	}
 
 	const COMMIT_WEBSITE = "Commit website"
 	if !HasCompletedStep(COMMIT_WEBSITE) {
-		os.Chdir("../ourmachinery.com")
+		buildDir, _ := os.Getwd()
+		os.Chdir(websiteDir())
 		exec.Command("git", "gui").Run()
-		os.Chdir("../themachinery")
+		os.Chdir(buildDir)
 		ManualStep(COMMIT_WEBSITE, "Review and commit website changes")
 	}
 
 	const UPLOAD_WEBSITE = "Upload website"
 	if !HasCompletedStep(UPLOAD_WEBSITE) {
 		password := ReadSetting("Website password")
-		os.Chdir("../ourmachinery.com/bin")
+		buildDir, _ := os.Getwd()
+		os.Chdir(path.Join(websiteDir(), "bin"))
 		Run(exec.Command("go", "run", "upload.go", "-password", password))
 		Run(exec.Command("git", "push"))
-		os.Chdir("../../themachinery")
+		os.Chdir(buildDir)
 		CompleteStep(UPLOAD_WEBSITE)
 	}
 
@@ -440,9 +460,10 @@ func stepPushTags(version string) {
 func stepMergeToMaster(version string) {
 	const MERGE_TO_MASTER = "Merge to master"
 	if !HasCompletedStep(MERGE_TO_MASTER) {
-		os.Chdir("../sample-projects")
+		buildDir, _ := os.Getwd()
+		os.Chdir(sampleProjectsDir())
 		Run(exec.Command("git", "checkout", "master"))
-		os.Chdir("../themachinery")
+		os.Chdir(buildDir)
 		Run(exec.Command("git", "checkout", "master"))
 		Run(exec.Command("git", "merge", "release/"+Major(version)))
 		Run(exec.Command("git", "push"))
@@ -543,10 +564,12 @@ func hotfixRelease() {
 
 	const STEP_CHECK_OUT_SOURCE = "Check out source code"
 	if !HasCompletedStep(STEP_CHECK_OUT_SOURCE) {
+		buildDir, _ := os.Getwd()
+		fmt.Println(buildDir)
 		Run(exec.Command("git", "checkout", "release/"+Major(version)))
-		os.Chdir("../sample-projects")
+		os.Chdir(sampleProjectsDir())
 		Run(exec.Command("git", "checkout", "release-"+Major(version)))
-		os.Chdir("../themachinery")
+		os.Chdir(buildDir)
 		CompleteStep(STEP_CHECK_OUT_SOURCE)
 	}
 
@@ -580,8 +603,8 @@ func linuxBuildFromScratch() {
 	if err != nil {
 		panic(err)
 	}
-	os.Setenv("TM_OURMACHINERY_COM_DIR", "../ourmachinery.com")
-	os.Setenv("TM_SAMPLE_PROJECTS_DIR", "../sample-projects")
+	os.Setenv("TM_OURMACHINERY_COM_DIR", websiteDir())
+	os.Setenv("TM_SAMPLE_PROJECTS_DIR", sampleProjectsDir())
 
 	const STEP_CLONE_REPOSITORY = "Clone repository"
 	if !HasCompletedStep(STEP_CLONE_REPOSITORY) {
@@ -590,14 +613,15 @@ func linuxBuildFromScratch() {
 		Run(exec.Command("git", "checkout", "release/"+Major(version)))
 
 		// Fake ourmachinery.com dir
-		os.Mkdir("../ourmachinery.com", 0755)
+		os.Mkdir(websiteDir(), 0755)
 
 		// Sample projects
-		os.Chdir("..")
-		Run(exec.Command("git", "clone", "https://"+user+":"+token+"@github.com/OurMachinery/sample-projects.git"))
-		os.Chdir("sample-projects")
+		buildDir, _ := os.Getwd()
+		os.Mkdir(sampleProjectsDir(), 0755)
+		os.Chdir(sampleProjectsDir())
+		Run(exec.Command("git", "clone", "https://"+user+":"+token+"@github.com/OurMachinery/sample-projects.git", "."))
 		Run(exec.Command("git", "checkout", "release-"+Major(version)))
-		os.Chdir("../themachinery")
+		os.Chdir(buildDir)
 
 		CompleteStep(STEP_CLONE_REPOSITORY)
 	}
@@ -664,7 +688,7 @@ func main() {
 	linuxPtr := flag.Bool("linux", false, "Make a linux build")
 	flag.Parse()
 
-	os.Chdir("..")
+	os.Chdir(theMachineryDir())
 	if *hotfixPtr {
 		hotfixRelease()
 	} else if *linuxPtr {
