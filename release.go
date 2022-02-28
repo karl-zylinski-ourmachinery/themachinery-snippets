@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/user"
 	"path"
 	"strings"
 
@@ -614,37 +615,43 @@ func hotfixRelease() {
 
 func linuxBuildFromScratch() {
 	version := ReadSetting("Version number (M.m.p)")
-	user := ReadSetting("GitHub user")
+	githubUser := ReadSetting("GitHub user")
 	token := ReadSetting("GitHub Access Token")
 
-	_, err := os.Stat("themachinery")
+	usr, _ := user.Current()
+	dir := usr.HomeDir
+	tmDir := path.Join(dir, "themachinery")
+	webDir := path.Join(dir, "ourmachinery.com")
+	samplesDir := path.Join(dir, "sample-projects")
+
+	_, err := os.Stat(tmDir)
 	if errors.Is(err, os.ErrNotExist) {
-		err = os.Mkdir("themachinery", 0755)
+		err = os.Mkdir(tmDir, 0755)
 	}
 	if err != nil {
 		panic(err)
 	}
-	err = os.Chdir("themachinery")
+	err = os.Chdir(tmDir)
 	if err != nil {
 		panic(err)
 	}
-	os.Setenv("TM_OURMACHINERY_COM_DIR", websiteDir())
-	os.Setenv("TM_SAMPLE_PROJECTS_DIR", sampleProjectsDir())
+	os.Setenv("TM_OURMACHINERY_COM_DIR", webDir)
+	os.Setenv("TM_SAMPLE_PROJECTS_DIR", samplesDir)
 
 	const STEP_CLONE_REPOSITORY = "Clone repository"
 	if !HasCompletedStep(STEP_CLONE_REPOSITORY) {
 		// Clone main repository
-		Run(exec.Command("git", "clone", "https://"+user+":"+token+"@github.com/OurMachinery/themachinery.git", "."))
+		Run(exec.Command("git", "clone", "https://"+githubUser+":"+token+"@github.com/OurMachinery/themachinery.git", "."))
 		Run(exec.Command("git", "checkout", "release/"+Major(version)))
 
 		// Fake ourmachinery.com dir
-		os.Mkdir(websiteDir(), 0755)
+		os.Mkdir(webDir, 0755)
 
 		// Sample projects
 		buildDir, _ := os.Getwd()
-		os.Mkdir(sampleProjectsDir(), 0755)
-		os.Chdir(sampleProjectsDir())
-		Run(exec.Command("git", "clone", "https://"+user+":"+token+"@github.com/OurMachinery/sample-projects.git", "."))
+		os.Mkdir(samplesDir, 0755)
+		os.Chdir(samplesDir)
+		Run(exec.Command("git", "clone", "https://"+githubUser+":"+token+"@github.com/OurMachinery/sample-projects.git", "."))
 		Run(exec.Command("git", "checkout", "release-"+Major(version)))
 		os.Chdir(buildDir)
 
@@ -713,12 +720,13 @@ func main() {
 	linuxPtr := flag.Bool("linux", false, "Make a linux build")
 	flag.Parse()
 
-	os.Chdir(theMachineryDir())
 	if *hotfixPtr {
+		os.Chdir(theMachineryDir())
 		hotfixRelease()
 	} else if *linuxPtr {
 		linuxBuildFromScratch()
 	} else {
+		os.Chdir(theMachineryDir())
 		release()
 	}
 }
