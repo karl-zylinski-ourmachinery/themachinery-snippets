@@ -25,20 +25,21 @@ import (
 	"github.com/jlaffaye/ftp"
 )
 
-var settingsFile = SettingsFile()
-var settingsData = LoadSettings()
+var settingsFile string
+var settingsData map[string]string
 
-func SettingsFile() string {
+func init() {
 	wd, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
-	return path.Join(wd, "releaseBuild.json")
+	settingsFile = path.Join(wd, "releaseBuild.json")
+	settingsData = LoadSettings(settingsFile)
 }
 
-func LoadSettings() map[string]string {
+func LoadSettings(file string) map[string]string {
 	data := make(map[string]string)
-	bytes, err := ioutil.ReadFile(settingsFile)
+	bytes, err := ioutil.ReadFile(file)
 	if err == nil {
 		json.Unmarshal(bytes, &data)
 	}
@@ -53,8 +54,14 @@ func GetSetting(key string) string {
 // SetSetting sets the setting for the specified key.
 func SetSetting(key, value string) {
 	settingsData[key] = value
-	txt, _ := json.MarshalIndent(settingsData, "", "    ")
-	ioutil.WriteFile(settingsFile, txt, 0644)
+	txt, err := json.MarshalIndent(settingsData, "", "    ")
+	if err != nil {
+		panic(err)
+	}
+	err = ioutil.WriteFile(settingsFile, txt, 0644)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // If a setting exists for the specified prompt, returns that setting. Otherwise, prints the
@@ -497,8 +504,7 @@ func stepMergeToMaster(version string) {
 func stepUpdateDownloadsConfig(version string, isHotfix bool) {
 	const UPDATE_DOWNLOADS_CONFIGS = "Update themachinery/the-machinery-downloads-configs.json"
 	if !HasCompletedStep(UPDATE_DOWNLOADS_CONFIGS) {
-		dropbox := "C:/Users/nikla/Dropbox (Our Machinery)/Our Machinery Everybody"
-		dir := path.Join(dropbox, "releases/2022", Major(version))
+		dir := path.Join(dropboxDir(), "releases/2022", Major(version))
 		windowsPackage := path.Join(dir, "the-machinery-"+version+"-windows.zip")
 		linuxPackage := path.Join(dir, "the-machinery-"+version+"-linux.zip")
 		windowsStat, err := os.Stat(windowsPackage)
