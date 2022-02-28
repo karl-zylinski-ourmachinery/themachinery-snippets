@@ -9,6 +9,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -23,28 +24,35 @@ import (
 	"github.com/jlaffaye/ftp"
 )
 
-const settingsFile = "releaseBuild.json"
+var settingsFile = SettingsFile()
+var settingsData = LoadSettings()
 
-// GetSetting returns the setting for the specified key.
-func GetSetting(key string) string {
-	data := make(map[string]string)
-	bytes, err := ioutil.ReadFile(settingsFile)
+func SettingsFile() string {
+	wd, err := os.Getwd()
 	if err != nil {
-		return ""
+		panic(err)
 	}
-	json.Unmarshal(bytes, &data)
-	return data[key]
+	return path.Join(wd, "releaseBuild.json")
 }
 
-// SetSetting sets the setting for the specified key.
-func SetSetting(key, value string) {
+func LoadSettings() map[string]string {
 	data := make(map[string]string)
 	bytes, err := ioutil.ReadFile(settingsFile)
 	if err == nil {
 		json.Unmarshal(bytes, &data)
 	}
-	data[key] = value
-	txt, _ := json.MarshalIndent(data, "", "    ")
+	return data
+}
+
+// GetSetting returns the setting for the specified key.
+func GetSetting(key string) string {
+	return settingsData[key]
+}
+
+// SetSetting sets the setting for the specified key.
+func SetSetting(key, value string) {
+	settingsData[key] = value
+	txt, _ := json.MarshalIndent(settingsData, "", "    ")
 	ioutil.WriteFile(settingsFile, txt, 0644)
 }
 
@@ -56,7 +64,9 @@ func ReadSetting(prompt string) string {
 		return s
 	}
 	fmt.Print(prompt + ": ")
-	fmt.Scanln(&s)
+	in := bufio.NewReader(os.Stdin)
+	s, _ = in.ReadString('\n')
+	s = strings.TrimSpace(s)
 	SetSetting(prompt, s)
 	return s
 }
@@ -125,7 +135,7 @@ func CopyFileToDir(srcFile, dir string) {
 }
 
 func UploadFileToWebsiteDir(srcFile, dir, password string) {
-	c, err := ftp.Dial("160.153.16.15:21")
+	c, err := ftp.Dial("92.205.9.87:21")
 	if err != nil {
 		panic(err)
 	}
@@ -165,18 +175,29 @@ func HotFixLink(version string) string {
 	return strings.ReplaceAll(version, ".", "")
 }
 
-// TODO: Should these be configurable?
+func ReadExistingDirSetting(prompt string) string {
+	dir := ReadSetting(prompt)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		SetSetting(prompt, "")
+		panic(err)
+	}
+	return dir
+}
+
 func sampleProjectsDir() string {
-	return "../sample-projects"
+	return ReadExistingDirSetting("Sample Projects Dir")
 }
+
 func websiteDir() string {
-	return "../ourmachinery.com"
+	return ReadExistingDirSetting("Website Dir")
 }
+
 func theMachineryDir() string {
-	return ".."
+	return ReadExistingDirSetting("The Machinery Dir")
 }
+
 func dropboxDir() string {
-	return "C:/Users/nikla/Dropbox (Our Machinery)/Our Machinery Everybody"
+	return ReadExistingDirSetting("Our Machinery Everybody Dropbox Dir")
 }
 
 func stepBuildWindowsPackage() {
@@ -203,8 +224,8 @@ func stepBuildWindowsPackage() {
 }
 
 func stepUploadWindowsPackage(version string) {
-	windowsPackage := "build/the-machinery-" + version + "-windows.zip"
-	windowsPdbsPackage := "build/the-machinery-pdbs-" + version + "-windows.zip"
+	windowsPackage := path.Join(theMachineryDir(), "build", "the-machinery-"+version+"-windows.zip")
+	windowsPdbsPackage := path.Join(theMachineryDir(), "build", "the-machinery-pdbs-"+version+"-windows.zip")
 
 	const STEP_UPLOAD_WINDOWS_TO_DROPBOX = "Upload Windows package to Dropbox"
 	if !HasCompletedStep(STEP_UPLOAD_WINDOWS_TO_DROPBOX) {
