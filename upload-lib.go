@@ -25,7 +25,7 @@ func main() {
 		log.Fatal("No library specified")
 	}
 
-	c, err := ftp.Dial("160.153.16.15:21")
+	c, err := ftp.Dial("92.205.9.87:21")
 	if err != nil {
 		log.Fatal(err)
 	}
