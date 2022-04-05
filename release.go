@@ -170,6 +170,9 @@ func UploadFileToWebsiteDir(srcFile, dir, password string) {
 	}
 	base := path.Base(srcFile)
 	err = c.Stor(base, f)
+	if err != nil {
+		panic(err)
+	}
 
 	c.Quit()
 }
@@ -262,7 +265,7 @@ func stepCreateReleaseBranch(version string) {
 		os.Chdir(sampleProjectsDir())
 		Run(exec.Command("git", "pull"))
 		Run(exec.Command("git", "tag", "release-"+Major(version)))
-		Run(exec.Command("git", "push", "--tags"))
+		Run(exec.Command("git", "push", "--tags", "-f"))
 		os.Chdir(websiteDir())
 		Run(exec.Command("git", "pull"))
 		os.Chdir(buildDir)
@@ -293,7 +296,7 @@ func stepBuildSampleProjects(version string) {
 		Run(exec.Command("git", "commit", "-am", "Updated sample projects for release-"+Major(version)))
 		Run(exec.Command("git", "tag", "release-"+Major(version)))
 		Run(exec.Command("git", "push"))
-		Run(exec.Command("git", "push", "--tags"))
+		Run(exec.Command("git", "push", "--tags", "-f"))
 		os.Chdir(buildDir)
 		CompleteStep(STEP_BUILD_SAMPLE_PROJECTS)
 	}
@@ -482,7 +485,7 @@ func stepPushTags(version string) {
 	const PUSH_TAGS = "Push tags"
 	if !HasCompletedStep(PUSH_TAGS) {
 		Run(exec.Command("git", "tag", "release-"+version))
-		Run(exec.Command("git", "push", "--tags"))
+		Run(exec.Command("git", "push", "--tags", "-f"))
 		CompleteStep(PUSH_TAGS)
 	}
 }
@@ -573,7 +576,7 @@ func release() {
 	stepUploadWindowsPackage(version)
 	stepCommitChanges(version, true)
 
-	ManualStep("Build on Linux", "Reboot to Linux and run the build script there.")
+	ManualStep("Build on Linux", "Reboot to Linux and run the build script there, in linux mode: go run release.go -linux. It will clone and setup git repositories for you.")
 	ManualStep("Update website links", "Update the links on the download page with the links to the new project.")
 	ManualStep("Add Release Notes", "Add Release Notes for the hot fix release.")
 	ManualStep("Update website roadmap", "Update the roadmap on the website")
@@ -622,7 +625,7 @@ func hotfixRelease() {
 func linuxBuildFromScratch() {
 	version := ReadSetting("Version number (M.m.p)")
 	githubUser := ReadSetting("GitHub user")
-	token := ReadSetting("GitHub Access Token")
+	token := ReadSetting("GitHub Access Token (can be created on github.com)")
 
 	usr, _ := user.Current()
 	dir := usr.HomeDir
@@ -709,7 +712,7 @@ func linuxBuildFromScratch() {
 	const STEP_UPLOAD_LINUX_TO_DROPBOX = "Upload Linux package to Dropbox"
 	if !HasCompletedStep(STEP_UPLOAD_LINUX_TO_DROPBOX) {
 		Run(exec.Command("/bin/sh", "-c", "firefox https://www.dropbox.com/work/Our%20Machinery%20Everybody/releases/2022/2021.11"))
-		ManualStep(STEP_UPLOAD_LINUX_TO_DROPBOX, "Upload "+linuxPackage+" and "+linuxSymbolsPackage+"to Dropbox")
+		ManualStep(STEP_UPLOAD_LINUX_TO_DROPBOX, "Upload "+linuxPackage+" and "+linuxSymbolsPackage+" to Dropbox. They reside in ~/themachinery/build")
 	}
 
 	const STEP_UPLOAD_LINUX_TO_WEBSITE = "Upload Linux to website"
