@@ -264,8 +264,6 @@ func stepCreateReleaseBranch(version string) {
 		buildDir, _ := os.Getwd()
 		os.Chdir(sampleProjectsDir())
 		Run(exec.Command("git", "pull"))
-		Run(exec.Command("git", "tag", "release-"+Major(version)))
-		Run(exec.Command("git", "push", "--tags", "-f"))
 		os.Chdir(websiteDir())
 		Run(exec.Command("git", "pull"))
 		os.Chdir(buildDir)
@@ -576,10 +574,10 @@ func release() {
 	stepUploadWindowsPackage(version)
 	stepCommitChanges(version, true)
 
-	ManualStep("Build on Linux", "Reboot to Linux and run the build script there, in linux mode: go run release.go -linux. It will clone and setup git repositories for you.")
-	ManualStep("Update website links", "Update the links on the download page with the links to the new project.")
-	ManualStep("Add Release Notes", "Add Release Notes for the hot fix release.")
-	ManualStep("Update website roadmap", "Update the roadmap on the website")
+	ManualStep("Build on Linux", "Reboot to Linux and run the build script there, in linux mode: go run release.go -linux. It will clone and setup git repositories for you. If you're not running a live USB stick, make sure to delete any old releaseBuild.json file as well as old local repositories from the previous release.")
+	ManualStep("Update website links", "Update the links on the download page with the links to the new version. I.e. edit content/page/download.html in ourmachinery.com repo and change all http://ourmachinery.com/releases/blablabla links to point to the version that was just uploaded by this script.")
+	ManualStep("Add Release Notes", "Add Release Notes for the release. I.e. add a new .md file in content/post in ourmachinery.com repo, bin/prepare.go can be used to create the post. You'll get the .md version of the release notes from Dropbox Paper's export function.")
+	ManualStep("Update website roadmap", "Update the roadmap on the website. I.e. edit the Roadmap document on Dropbox Paper and the run `go run bin/roadmap.go` in the ourmachinery.com repo.")
 
 	stepBuildWebsite()
 	stepPushTags(version)
@@ -610,10 +608,10 @@ func hotfixRelease() {
 	stepUploadWindowsPackage(version)
 	stepCommitChanges(version, false)
 
-	ManualStep("Build on Linux", "Reboot to Linux and run the build script there.")
+	ManualStep("Build on Linux", "Reboot to Linux and run the build script there, in linux mode: go run release.go -linux. It will clone and setup git repositories for you. If you're not running a live USB stick, make sure to delete any old releaseBuild.json file as well as old local repositories from the previous release.")
 
-	ManualStep("Update website links", "Update the links on the download page with the links to the new project.")
-	ManualStep("Add Release Notes", "Add Release Notes for the hot fix release.")
+	ManualStep("Update website links", "Update the links on the download page with the links to the new version. I.e. edit content/page/download.html in ourmachinery.com repo and change all http://ourmachinery.com/releases/blablabla links to point to the version that was just uploaded by this script.")
+	ManualStep("Add Release Notes", "Add Release Notes for the release. I.e. add a new .md file in content/post in ourmachinery.com repo, bin/prepare.go can be used to create the post. You'll get the .md version of the release notes from Dropbox Paper's export function.")
 
 	stepBuildWebsite()
 	stepPushTags(version)
@@ -722,6 +720,9 @@ func linuxBuildFromScratch() {
 		UploadFileToWebsiteDir(linuxPackage, dir, password)
 		CompleteStep(STEP_UPLOAD_LINUX_TO_WEBSITE)
 	}
+
+	fmt.Println()
+	fmt.Println("All done. Boot back to Windows and continue the release process by running `go run release.go`.")
 }
 
 func main() {
