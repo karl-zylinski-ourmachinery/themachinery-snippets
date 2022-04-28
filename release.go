@@ -575,7 +575,7 @@ func release() {
 	stepCommitChanges(version, true)
 
 	ManualStep("Build on Linux", "Reboot to Linux and run the build script there, in linux mode: go run release.go -linux. It will clone and setup git repositories for you. If you're not running a live USB stick, make sure to delete any old releaseBuild.json file as well as old local repositories from the previous release.")
-	ManualStep("Update website links", "Update the links on the download page with the links to the new version. I.e. edit content/page/download.html in ourmachinery.com repo and change all http://ourmachinery.com/releases/blablabla links to point to the version that was just uploaded by this script.")
+	ManualStep("Update website links", "Update the links on the download page with the links to the new version. I.e. edit content/page/download.html in ourmachinery.com repo and change all http://ourmachinery.com/releases/blablabla links to point to the version that was just uploaded by this script. Also update links in content/page/samples.html and data/content/samples.toml")
 	ManualStep("Add Release Notes", "Add Release Notes for the release. I.e. export the Dropbox Paper release notes as .md and put them as a .md file in ourmachinery.com/content/post. Then run `go run bin/prepare.go path-to-the-md-file-you-just-created`. Then look through the processed md file and replace any TODO items by hand. Images need to be saved from Dropbox Paper document into the static/images folder")
 	ManualStep("Update website roadmap", "Update the roadmap on the website. I.e. export the roadmap as markdown and put it in ourmachinery.com/bin, then run `go run roadmap.go` in that folder.")
 
@@ -610,7 +610,7 @@ func hotfixRelease() {
 
 	ManualStep("Build on Linux", "Reboot to Linux and run the build script there, in linux mode: go run release.go -linux. It will clone and setup git repositories for you. If you're not running a live USB stick, make sure to delete any old releaseBuild.json file as well as old local repositories from the previous release.")
 
-	ManualStep("Update website links", "Update the links on the download page with the links to the new version. I.e. edit content/page/download.html in ourmachinery.com repo and change all http://ourmachinery.com/releases/blablabla links to point to the version that was just uploaded by this script.")
+	ManualStep("Update website links", "Update the links on the download page with the links to the new version. I.e. edit content/page/download.html in ourmachinery.com repo and change all http://ourmachinery.com/releases/blablabla links to point to the version that was just uploaded by this script. Hotfixes usually don't update samples so you can ignore that.")
 	ManualStep("Add Release Notes", "Add Release Notes for the hotfix. These are usually added at the end of previous major release, look at some old release in ourmachinery.com/content/post for reference.")
 
 	stepBuildWebsite()
