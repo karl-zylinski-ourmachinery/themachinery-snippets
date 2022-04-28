@@ -611,7 +611,7 @@ func hotfixRelease() {
 	ManualStep("Build on Linux", "Reboot to Linux and run the build script there, in linux mode: go run release.go -linux. It will clone and setup git repositories for you. If you're not running a live USB stick, make sure to delete any old releaseBuild.json file as well as old local repositories from the previous release.")
 
 	ManualStep("Update website links", "Update the links on the download page with the links to the new version. I.e. edit content/page/download.html in ourmachinery.com repo and change all http://ourmachinery.com/releases/blablabla links to point to the version that was just uploaded by this script.")
-	ManualStep("Add Release Notes", "Add Release Notes for the release. I.e. add a new .md file in content/post in ourmachinery.com repo, bin/prepare.go can be used to create the post. You'll get the .md version of the release notes from Dropbox Paper's export function.")
+	ManualStep("Add Release Notes", "Add Release Notes for the hotfix. These are usually added at the end of previous major release, look at some old release in ourmachinery.com/content/post for reference.")
 
 	stepBuildWebsite()
 	stepPushTags(version)
